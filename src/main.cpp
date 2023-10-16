@@ -19,6 +19,15 @@
 #pragma comment(lib, "dxguid.lib")
 #endif
 
+/**
+ *
+ * \file main.cpp
+ *
+ * \brief Основной файл программы.
+ *
+ * Этот файл содержит основной код программы, включая функцию main().
+ */
+
 struct FrameContext
 {
     ID3D12CommandAllocator *CommandAllocator;
@@ -62,12 +71,19 @@ static ID3D12Resource *g_mainRenderTargetResource[NUM_BACK_BUFFERS] = {};
 static D3D12_CPU_DESCRIPTOR_HANDLE g_mainRenderTargetDescriptor[NUM_BACK_BUFFERS] = {};
 
 // Forward declarations of helper functions
+
 bool CreateDeviceD3D(HWND hWnd);
+
 void CleanupDeviceD3D();
+
 void CreateRenderTarget();
+
 void CleanupRenderTarget();
+
 void WaitForLastSubmittedFrame();
+
 FrameContext *WaitForNextFrameResources();
+
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 /**
@@ -132,12 +148,14 @@ void render_finished_list();
 void clear_finished_tasks();
 
 /**
- * \brief Создает базу данных и таблицу tasks при их отсутствии.
+ * @brief Создает базу данных и таблицу задач.
  *
- * При открытии или создании базы данных проверяет наличие таблицы tasks. Если таблица не существует,
- * выполняет SQL-запрос для ее создания с полями task_name (текстовое поле для имени задачи) и
- * task_finished (целочисленное поле для статуса завершения задачи).
- * Если процесс создания таблицы завершился успешно, база данных закрывается.
+ * Эта функция создает базу данных и таблицу для хранения задач. Если база данных уже существует,
+ * она будет открыта, и если таблица уже существует, она не будет пересоздана.
+ *
+ * Структура таблицы 'tasks':
+ * - 'task_name': TEXT, текстовое поле для хранения имени задачи.
+ * - 'task_finished': INTEGER, целочисленное поле для хранения статуса задачи (0 - невыполнено, 1 - выполнено).
  */
 void create_database_and_table();
 
@@ -155,7 +173,7 @@ void render_task_list();
 std::vector<Task> tasks;          /**< Вектор задач, активных в данный момент. */
 std::vector<Task> finished_tasks; /**< Вектор завершенных задач. */
 
-int main(int, char **)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // Create application window
     // ImGui_ImplWin32_EnableDpiAwareness();
@@ -230,7 +248,7 @@ int main(int, char **)
         ImGui::NewFrame();
 
         ImGui::SetNextWindowSize(ImVec2(800, 600));
-        if (ImGui::Begin(u8"Список задач"))
+        if (ImGui::Begin(u8"Список задач", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
             render_task_list();
             if (ImGui::Button(u8"Удалить выделенные"))
@@ -241,7 +259,7 @@ int main(int, char **)
             ImGui::InputText(" ", task_input, sizeof(task_input));
             ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.6f, 0.0f, 1.0f));
-            if (ImGui::Button(u8"Добавить", ImVec2(76, 28)) || (io.KeysDown[ImGuiKey_Enter] && io.KeyMods == 0))
+            if (ImGui::Button(u8"Добавить", ImVec2(76, 23)) || (io.KeysDown[ImGuiKey_Enter] && io.KeyMods == 0))
             {
                 if (strlen(task_input) > 0)
                 {
@@ -336,7 +354,7 @@ void create_database_and_table()
 
     if (rc != SQLITE_OK)
     {
-        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        // fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         return;
     }
 
@@ -351,7 +369,7 @@ void create_database_and_table()
 
     if (rc != SQLITE_OK)
     {
-        fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
+        // fprintf(stderr, "Failed to prepare query: %s\n", sqlite3_errmsg(db));
         return;
     }
 
@@ -362,11 +380,6 @@ void create_database_and_table()
     sqlite3_close(db);
 }
 
-/**
- *\brief Добавляет новую задачу в список задач и сохраняет её в базе данных.
- *
- *@param task Название новой задачи.
- */
 void add_task(const std::string &task)
 {
 
@@ -412,7 +425,7 @@ void load_tasks_from_database()
         result = sqlite3_prepare_v2(db, select_query, -1, &stmt, nullptr);
         if (result != SQLITE_OK)
         {
-            std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
+            // std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
             return;
         }
 
@@ -492,7 +505,7 @@ void update_tasks_in_database()
             result = sqlite3_prepare_v2(db, update_query, -1, &stmt, nullptr);
             if (result != SQLITE_OK)
             {
-                std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
+                // std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
                 return;
             }
 
@@ -543,7 +556,7 @@ void clear_finished_tasks()
 
     if (rc != SQLITE_OK)
     {
-        std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
+        // std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_close(db);
         return;
     }
@@ -595,7 +608,7 @@ std::vector<Task> get_finished_tasks()
 
     if (rc != SQLITE_OK)
     {
-        std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
+        // std::cerr << "Failed to prepare query: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_close(db);
         return finished_tasks;
     }
@@ -860,6 +873,7 @@ FrameContext *WaitForNextFrameResources()
 }
 
 // Forward declare message handler from imgui_impl_win32.cpp
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
