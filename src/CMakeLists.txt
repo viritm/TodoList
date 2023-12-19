@@ -1,8 +1,17 @@
-
+﻿
 message("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
 
+if(WIN32)
+    add_executable(TodoList WIN32
+    main.cpp)
+else()
+    add_executable(TodoList main.cpp)
+endif()
 
-add_executable(TodoList main.cpp)
+
+if(WIN32)
+    add_definitions(-D_WIN32)
+endif()
 
 target_compile_definitions(TodoList PRIVATE PROJECT_ROOT_DIR=${PROJECT_ROOT_DIR})
 

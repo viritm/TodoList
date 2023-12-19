@@ -1,4 +1,4 @@
-#include <imgui.h>
+﻿#include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #include <GLFW/glfw3.h>
@@ -111,7 +111,7 @@ void clear_finished_tasks();
  * - 'task_name': TEXT, текстовое поле для хранения имени задачи.
  * - 'task_finished': INTEGER, целочисленное поле для хранения статуса задачи (0 - невыполнено, 1 - выполнено).
  */
-void create_database_and_table();
+void create_database_and_table(bool &should_show_warning_dialog);
 
 /**
  * \brief Отображает список задач с возможностью отметки выполненных задач.
@@ -135,14 +135,20 @@ std::string removeQuotes(const std::string &input)
     return input;
 }
 
-int main()
+#ifdef _WIN32
+
+#include <Windows.h>
+
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     if (!glfwInit())
     {
         return -1;
     }
 
-    GLFWwindow *window = glfwCreateWindow(1024, 768, "Список задач", NULL, NULL);
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+
+    GLFWwindow *window = glfwCreateWindow(1024, 768, u8"Список задач", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -167,6 +173,9 @@ int main()
 
     char task_input[256] = "";
     bool show_finished_list = false;
+    bool should_show_warning_dialog = false;
+
+    create_database_and_table(should_show_warning_dialog);
 
     load_tasks_from_database();
     finished_tasks = {get_finished_tasks()};
@@ -177,25 +186,32 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
 
-        create_database_and_table();
+        int framebufferWidth, framebufferHeight;
+        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
+        glfwMakeContextCurrent(window);
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
+        ImGui::GetIO().DisplaySize = ImVec2(static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight));
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextWindowSize(ImVec2(800, 600));
-        if (ImGui::Begin("Список задач", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(framebufferWidth, framebufferHeight));
+
+        if (ImGui::Begin(u8"Список задач", nullptr, ImGuiWindowFlags_NoTitleBar))
         {
             render_task_list();
-            if (ImGui::Button("Удалить выделенные"))
+            if (ImGui::Button(u8"Удалить выделенные"))
             {
                 delete_tasks();
             }
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "Поле для ввода");
+            ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"Поле для ввода");
             ImGui::InputText(" ", task_input, sizeof(task_input));
             ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.6f, 0.0f, 1.0f));
-            if (ImGui::Button("Добавить", ImVec2(76, 23)) || (io.KeysDown[ImGuiKey_Enter] && io.KeyMods == 0))
+            if (ImGui::Button(u8"Добавить", ImVec2(76, 23)) || (io.KeysDown[ImGuiKey_Enter] && io.KeyMods == 0))
             {
                 if (strlen(task_input) > 0)
                 {
@@ -206,7 +222,7 @@ int main()
             }
             ImGui::PopStyleColor();
 
-            if (ImGui::Button("Показать выполнненые задачи"))
+            if (ImGui::Button(u8"Показать выполнненые задачи"))
             {
                 show_finished_list = !show_finished_list;
                 ImGui::SameLine();
@@ -218,13 +234,43 @@ int main()
                 render_finished_list();
                 ImGui::SameLine();
                 ImGui::Spacing();
-                if (ImGui::Button("Очистить список"))
+                if (ImGui::Button(u8"Очистить список"))
                 {
                     finished_tasks.clear();
                     clear_finished_tasks();
                 }
             }
         }
+
+        if (should_show_warning_dialog)
+        {
+
+            int glfw_width, glfw_height;
+            glfwGetWindowSize(window, &glfw_width, &glfw_height);
+
+            ImVec2 window_size(400, 200);
+
+            ImGui::SetNextWindowPos(ImVec2((glfw_width - window_size.x) * 0.5f, (glfw_height - window_size.y) * 0.5f));
+
+            ImGui::SetNextWindowSize(window_size);
+
+            ImGui::OpenPopup(u8"Ошибка");
+
+            if (ImGui::BeginPopupModal(u8"Ошибка", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text(u8"Невозможно открыть базу данных.");
+                ImGui::Text(u8"Задачи записываются только в текущей сессии и\nне будут сохранены по завершению приложения.");
+
+                if (ImGui::Button(u8"ОК"))
+                {
+                    ImGui::CloseCurrentPopup();
+                    should_show_warning_dialog = false;
+                }
+
+                ImGui::EndPopup();
+            }
+        }
+
         ImGui::End();
 
         ImGui::Render();
@@ -245,9 +291,171 @@ int main()
     glfwTerminate();
 
     return 0;
+
+    return 0;
 }
 
-void create_database_and_table()
+#else
+
+int main()
+{
+    if (!glfwInit())
+    {
+        return -1;
+    }
+
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+
+    GLFWwindow *window = glfwCreateWindow(1024, 768, u8"Список задач", NULL, NULL);
+    if (!window)
+    {
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
+
+    std::string projectRootDir = STRINGIZE(PROJECT_ROOT_DIR);
+    std::string fontPath = removeQuotes(projectRootDir) + "/fonts/arial.ttf";
+    ImFont *font = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 16, NULL, io.Fonts->GetGlyphRangesCyrillic());
+    if (!font)
+    {
+        std::cerr << "Failed to load Cyrillic font!" << std::endl;
+    }
+
+    char task_input[256] = "";
+    bool show_finished_list = false;
+    bool should_show_warning_dialog = false;
+
+    create_database_and_table(should_show_warning_dialog);
+
+    load_tasks_from_database();
+    finished_tasks = {get_finished_tasks()};
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+    while (!glfwWindowShouldClose(window))
+    {
+
+        int framebufferWidth, framebufferHeight;
+        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
+        glfwMakeContextCurrent(window);
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
+        ImGui::GetIO().DisplaySize = ImVec2(static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight));
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(framebufferWidth, framebufferHeight));
+
+        if (ImGui::Begin(u8"Список задач", nullptr, ImGuiWindowFlags_NoTitleBar))
+        {
+            render_task_list();
+            if (ImGui::Button(u8"Удалить выделенные"))
+            {
+                delete_tasks();
+            }
+            ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"Поле для ввода");
+            ImGui::InputText(" ", task_input, sizeof(task_input));
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.6f, 0.0f, 1.0f));
+            if (ImGui::Button(u8"Добавить", ImVec2(76, 23)) || (io.KeysDown[ImGuiKey_Enter] && io.KeyMods == 0))
+            {
+                if (strlen(task_input) > 0)
+                {
+                    add_task(task_input);
+                    memset(task_input, 0, sizeof(task_input));
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::PopStyleColor();
+
+            if (ImGui::Button(u8"Показать выполнненые задачи"))
+            {
+                show_finished_list = !show_finished_list;
+                ImGui::SameLine();
+                ImGui::Spacing();
+            }
+
+            if (show_finished_list)
+            {
+                render_finished_list();
+                ImGui::SameLine();
+                ImGui::Spacing();
+                if (ImGui::Button(u8"Очистить список"))
+                {
+                    finished_tasks.clear();
+                    clear_finished_tasks();
+                }
+            }
+        }
+
+        if (should_show_warning_dialog)
+        {
+
+            int glfw_width, glfw_height;
+            glfwGetWindowSize(window, &glfw_width, &glfw_height);
+
+            ImVec2 window_size(400, 200);
+
+            ImGui::SetNextWindowPos(ImVec2((glfw_width - window_size.x) * 0.5f, (glfw_height - window_size.y) * 0.5f));
+
+            ImGui::SetNextWindowSize(window_size);
+
+            ImGui::OpenPopup(u8"Ошибка");
+
+            if (ImGui::BeginPopupModal(u8"Ошибка", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text(u8"Невозможно открыть базу данных.");
+                ImGui::Text(u8"Задачи записываются только в текущей сессии и\nне будут сохранены по завершению приложения.");
+
+                if (ImGui::Button(u8"ОК"))
+                {
+                    ImGui::CloseCurrentPopup();
+                    should_show_warning_dialog = false;
+                }
+
+                ImGui::EndPopup();
+            }
+        }
+
+        ImGui::End();
+
+        ImGui::Render();
+
+        glfwMakeContextCurrent(window);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        glfwSwapBuffers(window);
+
+        glfwPollEvents();
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
+    return 0;
+
+    return 0;
+}
+
+#endif
+
+void create_database_and_table(bool &should_show_warning_dialog)
 {
     const char *db_file = "todo_list.db";
 
@@ -257,6 +465,7 @@ void create_database_and_table()
 
     if (rc != SQLITE_OK)
     {
+        should_show_warning_dialog = true;
         // fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         return;
     }
@@ -351,13 +560,13 @@ void load_tasks_from_database()
     }
     else
     {
-        std::cerr << "Error opening database!" << std::endl;
+        std::cerr << "Error opening database from load_tasks!" << std::endl;
     }
 }
 
 void render_finished_list()
 {
-    ImGui::TextColored(ImVec4(1, 1, 0, 1), "Завершенные задачи");
+    ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"Завершенные задачи");
     ImGui::BeginChild("FinishedTaskList", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     for (int i = 0; i < finished_tasks.size(); i++)
@@ -374,7 +583,7 @@ void render_finished_list()
 void render_task_list()
 {
     // Область с прокруткой для списка задач
-    ImGui::TextColored(ImVec4(1, 1, 0, 1), "Актуальные задачи");
+    ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"Актуальные задачи");
     ImGui::BeginChild("TaskList", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     for (int i = 0; i < tasks.size(); i++)
@@ -460,7 +669,7 @@ void clear_finished_tasks()
 
     if (rc != SQLITE_OK)
     {
-        std::cerr << "Cannot open database: " << sqlite3_errmsg(db) << std::endl;
+        std::cerr << "Cannot open database from clear_finished_tasks: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
 
@@ -519,7 +728,7 @@ std::vector<Task> get_finished_tasks()
 
     if (rc != SQLITE_OK)
     {
-        std::cerr << "Cannot open database: " << sqlite3_errmsg(db) << std::endl;
+        std::cerr << "Cannot open database from get_finished_tasks: " << sqlite3_errmsg(db) << std::endl;
         return finished_tasks;
     }
 
